@@ -1,6 +1,6 @@
 {
   "name": "@leniumso/threadpool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Parallel operations in js. ThreadPool in js.",
   "main": "dist/threadpool.min.js",
   "keywords": [

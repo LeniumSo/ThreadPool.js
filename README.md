@@ -14,5 +14,7 @@ function threadFunction(num) {
 
 ThreadPool.isDebugging = true;
 
-ThreadPool.run(threadFunction, [40]);
+ThreadPool.run(threadFunction, 40);
+ThreadPool.run(threadFunction, 30);
+ThreadPool.run(threadFunction, 45);
 ```
