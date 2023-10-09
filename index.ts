@@ -1,33 +1,48 @@
-﻿//! ThreadPool.js
-//! version : 1.0.0
-//! authors : LeniumSo
-//! license : MIT
-//! https://github.com/LeniumSo/ThreadPool.js
+﻿
+interface WorkerEntry {
+    id: string,
+    worker: Worker,
+    isIdle: boolean,
+    resolve: any,
+    reject: any
+}
 
-; (function () {
+interface QueueEntry {
+    processFunction: string,
+    processArguments: any[],
+    resolve: any,
+    reject: any
+}
 
-    var isAvailable = !!window.Worker;
+class ThreadPool {
 
-    function guid() {
-        return Math.random().toString(36).substring(2, 15) +
-            Math.random().toString(36).substring(2, 15);
+    static isAvailable = !!window.Worker;
+
+    static _workersPool: WorkerEntry[] = [];
+    static _queue: QueueEntry[] = [];
+
+    static workersPoolSize = 5;
+
+    static isDebugging = false;
+
+    static {
+        var me = this;
+
+        if (me.isAvailable) {
+            me.createWorkersPool();
+
+            setInterval(me.update.bind(me), 1000);
+        }
     }
 
-    var _workersPool = [];
-    var _queue = [];
+    static onWorkerMessage(workerId: string, data: any) {
+        var me = this;
 
-    var ThreadPool = {
-        workersPoolSize: 5,
-        isDebugging: false,
-        isAvailable: isAvailable
-    };
+        var worker: WorkerEntry | null = null;
 
-    function onWorkerMessage(workerId, data) {
-        var worker;
-
-        for (var i = 0; i < _workersPool.length; i++) {
-            if (_workersPool[i].id == workerId) {
-                worker = _workersPool[i];
+        for (var i = 0; i < me._workersPool.length; i++) {
+            if (me._workersPool[i].id == workerId) {
+                worker = me._workersPool[i];
                 break;
             }
         }
@@ -35,7 +50,7 @@
         if (worker) {
             worker.isIdle = true;
 
-            if (ThreadPool.isDebugging || data.isError) {
+            if (me.isDebugging || data.isError) {
                 if (data.isError) {
                     console.error('Worker: ' + workerId, data);
                 } else {
@@ -51,8 +66,10 @@
         }
     }
 
-    function createWorker() {
-        function workerFunction() {
+    static createWorker() {
+        var me = this;
+
+        function workerFunction(this: any) {
             var self = this;
 
             self.onmessage = function (e) {
@@ -71,7 +88,7 @@
 
                     result.result = processFunction.apply(null, processArguments);
 
-                } catch (ex) {
+                } catch (ex: any) {
 
                     result.isError = true;
                     result.errorMessage = ex.toString();
@@ -87,17 +104,17 @@
         var dataObj = '(' + workerFunction + ')();';
         var blob = new Blob([dataObj.replace('"use strict";', '')]);
 
-        var blobURL = (window.URL ? URL : webkitURL).createObjectURL(blob, {
+        var blobURL = ((window.URL ? URL : webkitURL) as any).createObjectURL(blob, {
             type: 'application/javascript; charset=utf-8'
         });
 
-        var id = guid();
+        var id = me.guid();
         var worker = new Worker(blobURL);
 
         worker.onmessage = function (e) {
             var data = e.data;
 
-            onWorkerMessage(id, data);
+            me.onWorkerMessage(id, data);
         };
 
         return {
@@ -109,44 +126,50 @@
         }
     }
 
-    function createWorkersPool() {
-        for (var i = 0; i < ThreadPool.workersPoolSize; i++) {
-            _workersPool.push(createWorker());
+    static createWorkersPool() {
+        var me = this;
+
+        for (var i = 0; i < me.workersPoolSize; i++) {
+            me._workersPool.push(me.createWorker());
         }
     }
 
-    ThreadPool.setWorkersPoolSize = function (size) {
-        if (!isAvailable)
+    static setWorkersPoolSize(size) {
+        var me = this;
+
+        if (!me.isAvailable)
             return;
 
         if (!size)
             size = 0;
-        _workersPool.forEach(function (worker) {
+        me._workersPool.forEach(function (worker) {
             worker.worker.terminate();
         });
 
-        ThreadPool.workersPoolSize = size;
+        me.workersPoolSize = size;
 
-        _workersPool = [];
+        me._workersPool = [];
 
-        createWorkersPool();
-    };
+        me.createWorkersPool();
+    }
 
-    function update() {
-        if (_queue && _queue.length) {
+    static update() {
+        var me = this;
+
+        if (me._queue && me._queue.length) {
 
             var idleWorker;
 
-            for (var i = 0; i < _workersPool.length; i++) {
-                if (_workersPool[i].isIdle) {
-                    idleWorker = _workersPool[i];
+            for (var i = 0; i < me._workersPool.length; i++) {
+                if (me._workersPool[i].isIdle) {
+                    idleWorker = me._workersPool[i];
                     break;
                 }
             }
 
             if (idleWorker) {
-                var firstItem = _queue[0];
-                _queue.shift();
+                var firstItem = me._queue[0];
+                me._queue.shift();
 
                 idleWorker.isIdle = false;
                 idleWorker.resolve = firstItem.resolve;
@@ -160,11 +183,13 @@
         }
     }
 
-    ThreadPool.run = function (func, args) {
+    static run(func: Function, ...args: any[]) {
+        var me = this;
+
         return new Promise(function (resolve, reject) {
 
-            if (isAvailable) {
-                _queue.push({
+            if (me.isAvailable) {
+                me._queue.push({
                     processFunction: func.toString(),
                     processArguments: args,
                     resolve: resolve,
@@ -181,15 +206,14 @@
             }
 
         });
-    };
-
-    if (isAvailable) {
-        createWorkersPool();
-
-        setInterval(update, 1000);
     }
 
-    window.ThreadPool = ThreadPool;
+    static guid() {
+        return Math.random().toString(36).substring(2, 15) +
+            Math.random().toString(36).substring(2, 15);
+    }
+}
 
-    return ThreadPool;
-})()
+window["ThreadPool"] = ThreadPool;
+
+export default ThreadPool;

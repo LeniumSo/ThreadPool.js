@@ -2,6 +2,8 @@
 Parallel operations in js. ThreadPool in js.
 
 ```
+import ThreadPool from '@leniumso/threadpool-js';
+
 function threadFunction(num) {
     function fib(n) {
         return n <= 1 ? n : fib(n - 1) + fib(n - 2);
