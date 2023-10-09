@@ -1,7 +1,7 @@
 # ThreadPool.js
 Parallel operations in js. ThreadPool in js.
 
-```
+```TypeScript
 import ThreadPool from '@leniumso/threadpool';
 
 function threadFunction(num) {
