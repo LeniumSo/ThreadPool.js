@@ -1,5 +1,6 @@
 # ThreadPool.js
 Parallel operations in js. ThreadPool in js.
+Background data processing.
 
 ```TypeScript
 import ThreadPool from '@leniumso/threadpool';
